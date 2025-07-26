@@ -4,3 +4,6 @@
 [submodule "libs/scpi-parser"]
 	path = libs/scpi-parser
 	url = https://github.com/j123b567/scpi-parser.git
+[submodule "libs/ssd1309"]
+	path = libs/ssd1309
+	url = https://github.com/libdriver/ssd1309.git
