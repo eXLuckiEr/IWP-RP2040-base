@@ -44,6 +44,7 @@ git submodule update --init --recursive
 3. Установите Pico SDK (если еще не установлен):
 git clone https://github.com/raspberrypi/pico-sdk.git
 export PICO_SDK_PATH=/path/to/pico-sdk
+```
 
 ## Используемые библиотеки
 
