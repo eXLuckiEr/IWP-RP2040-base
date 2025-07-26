@@ -1,3 +1,6 @@
 [submodule "libs/FreeRTOS-Kernel"]
 	path = libs/FreeRTOS-Kernel
 	url = https://github.com/FreeRTOS/FreeRTOS-Kernel
+[submodule "libs/scpi-parser"]
+	path = libs/scpi-parser
+	url = https://github.com/j123b567/scpi-parser.git
