@@ -18,6 +18,7 @@ cmake_minimum_required(VERSION 3.12)
 
 # Name project
 SET(ProjectName rp2040-spi)
+SET(SOURCE_FOLDER src)
 
 # Set any variables required for importing libraries
 SET(FREERTOS_KERNEL_PATH ${CMAKE_CURRENT_SOURCE_DIR}/libs/FreeRTOS-Kernel)
@@ -50,22 +51,24 @@ add_library(ssd1309_lib STATIC ${SSD1309_SRCS})
 target_include_directories(ssd1309_lib PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}
     ${SSD1309_LIB_PATH}/src
-    # ${SSD1309_LIB_PATH}/example
 )
 
 add_executable(rp2040-spi
-    main.c
-    scpi-def.c
-    driver_ssd1309_interface.c
-    driver_ssd1309_advance.c
-    SCPI_Test_PCAL6534_Registers.c
+    ${SOURCE_FOLDER}/main.c
+    ${SOURCE_FOLDER}/scpi-extensions/scpi-def.c
+    ${SOURCE_FOLDER}/scpi-extensions/SCPI_Test_PCAL6534.c
+    ${SOURCE_FOLDER}/scpi-extensions/SCPI_Test_SSD1309.c
+    ${SOURCE_FOLDER}/ssd1309-driver/driver_ssd1309_interface.c
+    ${SOURCE_FOLDER}/ssd1309-driver/driver_ssd1309_advance.c
 )
 
 target_include_directories(rp2040-spi PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}
     ${SCPI_LIB_PATH}/inc
     ${SSD1309_LIB_PATH}/src
-    # ${SSD1309_LIB_PATH}/example
+    ${SOURCE_FOLDER}/
+    ${SOURCE_FOLDER}/scpi-extensions/
+    ${SOURCE_FOLDER}/ssd1309-driver/
 )
 
 # Modify the below lines to enable/disable output over UART/USB

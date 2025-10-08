@@ -21,11 +21,6 @@
 #define PIN_MOSI 19
 #include "hardware/spi.h"
 
-// #define I2C_PORT i2c1
-// #define I2C_SCLK 27
-// #define I2C_SDA  26
-// #include "hardware/i2c.h"
-
 /* SCPI includes. */
 #include "scpi-def.h"
 
