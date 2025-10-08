@@ -54,10 +54,11 @@ target_include_directories(ssd1309_lib PRIVATE
 )
 
 add_executable(rp2040-spi
+    main.c
     scpi-def.c
     driver_ssd1309_interface.c
     driver_ssd1309_advance.c
-    main.c
+    SCPI_Test_PCAL6534_Registers.c
 )
 
 target_include_directories(rp2040-spi PRIVATE
@@ -74,8 +75,9 @@ pico_enable_stdio_usb(rp2040-spi 1)
 target_link_libraries(rp2040-spi
     pico_stdlib
     hardware_spi
+    hardware_i2c
     scpi_lib 
-    ssd1309_lib 
+    ssd1309_lib
     FreeRTOS-Kernel-Heap4 
     )
 

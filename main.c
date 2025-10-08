@@ -14,6 +14,18 @@
 #include <math.h>
 #include "pico/stdlib.h"
 
+#define SPI_PORT spi0
+#define PIN_MISO 16
+#define PIN_CS   17
+#define PIN_SCK  18
+#define PIN_MOSI 19
+#include "hardware/spi.h"
+
+// #define I2C_PORT i2c1
+// #define I2C_SCLK 27
+// #define I2C_SDA  26
+// #include "hardware/i2c.h"
+
 /* SCPI includes. */
 #include "scpi-def.h"
 
@@ -22,14 +34,7 @@
 #include "driver_ssd1309_interface.h"
 #include "driver_ssd1309_advance.h"
 
-#include "hardware/spi.h"
 #include "portmacro.h"
-
-#define SPI_PORT spi0
-#define PIN_MISO 16
-#define PIN_CS   17
-#define PIN_SCK  18
-#define PIN_MOSI 19
 
 TaskHandle_t ledTaskHandle = NULL;
 TaskHandle_t scpiTaskHandle = NULL;
@@ -41,14 +46,17 @@ TaskHandle_t uartTaskHandle = NULL;
 StreamBufferHandle_t SpiStream;
 StreamBufferHandle_t UartStream;
 
-void spi_task( void * parameters ) __attribute__( ( noreturn ) );
-void led_task( void * parameters ) __attribute__( ( noreturn ) );
+void spi_task ( void * parameters ) __attribute__( ( noreturn ) );
+void led_task ( void * parameters ) __attribute__( ( noreturn ) );
 void scpi_task( void * parameters ) __attribute__( ( noreturn ) );
 void uart_task( void * parameters ) __attribute__( ( noreturn ) );
+
+void hardware_init(void);
 
 int main()
 {
     stdio_init_all();
+    hardware_init();
 
     SpiStream = xStreamBufferCreate(ADC_QUEUE_LENGTH, sizeof(uint16_t));
     UartStream = xStreamBufferCreate(UART_QUEUE_LENGTH, sizeof(uint8_t));
@@ -68,25 +76,40 @@ int main()
     }
 }
 
+void hardware_init(void){
+
+    /* GPIO ------------------------------------------- */
+    gpio_init(PICO_DEFAULT_LED_PIN);
+    gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
+
+    /* I2C ------------------------------------------- */
+    // This example will use I2C0 on the default SDA and SCL pins (GP4, GP5 on a Pico)
+    // i2c_init(I2C_PORT, 100 * 1000);
+    // gpio_set_function(I2C_SDA, GPIO_FUNC_I2C);
+    // gpio_set_function(I2C_SCLK, GPIO_FUNC_I2C);
+    // gpio_pull_up(I2C_SDA);
+    // gpio_pull_up(I2C_SCLK);
+
+    /* SPI ------------------------------------------- */
+    // Enable SPI 0 at 1 MHz and connect to GPIOs
+    // spi_init(SPI_PORT, 1000000u);
+    // spi_set_format(SPI_PORT, 8, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
+    // spi_set_format(SPI_PORT, 16, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
+
+    // gpio_set_function(PIN_MISO, GPIO_FUNC_SPI);
+    // gpio_set_function(PIN_CS,   GPIO_FUNC_SPI);
+    // gpio_set_function(PIN_SCK,  GPIO_FUNC_SPI);
+    // gpio_set_function(PIN_MOSI, GPIO_FUNC_SPI);
+}
+
 void spi_task( void * parameters )
 {
     /* Unused parameters. */
     ( void ) parameters;
 
-    printf("SPI master example\n");
-
-    // Enable SPI 0 at 1 MHz and connect to GPIOs
-    spi_init(SPI_PORT, 1000000u);
-    spi_set_format(SPI_PORT, 16, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
-
-    gpio_set_function(PIN_MISO, GPIO_FUNC_SPI);
-    gpio_set_function(PIN_CS,   GPIO_FUNC_SPI);
-    gpio_set_function(PIN_SCK,  GPIO_FUNC_SPI);
-    gpio_set_function(PIN_MOSI, GPIO_FUNC_SPI);
-    
-
     uint16_t adc_value = 0;
-
+    
+    printf("SPI master example\n");
     while (true) {
         spi_read16_blocking(SPI_PORT, (uint16_t)(0xffff), &adc_value, 1);
         xStreamBufferSend(SpiStream, &adc_value, sizeof(uint16_t), pdMS_TO_TICKS(1));
@@ -98,13 +121,11 @@ void spi_task( void * parameters )
 void led_task( void * parameters )
 {   
     ( void ) parameters;
-    const uint LED_PIN = PICO_DEFAULT_LED_PIN;
-    gpio_init(LED_PIN);
-    gpio_set_dir(LED_PIN, GPIO_OUT);
+
     while (true) {
-        gpio_put(LED_PIN, 1);
+        gpio_put(PICO_DEFAULT_LED_PIN, 1);
         vTaskDelay(250);
-        gpio_put(LED_PIN, 0);
+        gpio_put(PICO_DEFAULT_LED_PIN, 0);
         vTaskDelay(250);
     }
 }
