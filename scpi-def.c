@@ -48,6 +48,9 @@
 #include "driver_ssd1309_interface.h"
 #include "driver_ssd1309_advance.h"
 
+#include "hardware/spi.h"
+
+
 extern StreamBufferHandle_t SpiStream;
 extern StreamBufferHandle_t UartStream;
 
@@ -525,7 +528,10 @@ const scpi_command_t scpi_commands[] = {
     {.pattern = "MEASure:FREQuency?", .callback = SCPI_StubQ,},
     {.pattern = "MEASure:PERiod?", .callback = SCPI_StubQ,},
 
+    /* ADC */
     {.pattern = "MEASure:DUMP", .callback = SCPI_Dump_adc,},
+
+    /* Dipslay */
     {.pattern = "DISPlay:STATE", .callback = SCPI_Display_state,},
     {.pattern = "DISPlay:CLEAR", .callback = SCPI_Display_clear,},
     {.pattern = "DISPlay:WRITE", .callback = SCPI_Display_write,},
@@ -533,6 +539,12 @@ const scpi_command_t scpi_commands[] = {
     {.pattern = "DISPlay:SQUARE", .callback = SCPI_Display_square,},
     {.pattern = "DISPlay:PICTURE", .callback = SCPI_Display_picture,},
     {.pattern = "DISPlay:SLOW", .callback = SCPI_Display_slow,},
+
+    /* I2C Bus */
+    {.pattern = "I2C:SCAN", .callback = SCPI_I2C_scan,},
+    {.pattern = "I2C:WRITE", .callback = SCPI_I2C_write,},
+    {.pattern = "I2C:READ", .callback = SCPI_I2C_read,},
+    {.pattern = "I2C:PCAL6534:TEST", .callback = SCPI_Test_PCAL6534_Registers,},
 
     SCPI_CMD_LIST_END
 };

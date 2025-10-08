@@ -64,6 +64,11 @@ scpi_result_t SCPI_Display_square(scpi_t * context);
 scpi_result_t SCPI_Display_picture(scpi_t * context);
 scpi_result_t SCPI_Display_slow(scpi_t * context);
 
+scpi_result_t SCPI_I2C_scan(scpi_t * context);
+scpi_result_t SCPI_I2C_write(scpi_t * context);
+scpi_result_t SCPI_I2C_read(scpi_t * context);
+scpi_result_t SCPI_Test_PCAL6534_Registers(scpi_t *context);
+
 #ifdef __cplusplus
 }
 #endif
