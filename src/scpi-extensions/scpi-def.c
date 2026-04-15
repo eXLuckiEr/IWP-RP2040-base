@@ -44,12 +44,30 @@
 #include <FreeRTOS.h>
 #include <task.h>
 #include <stream_buffer.h>
+#include "hardware/uart_handle.h"
 
-extern StreamBufferHandle_t UartStream;
+extern StreamBufferHandle_t xRxUartStream;
+extern StreamBufferHandle_t xTxUartStream;
 
 size_t SCPI_Write(scpi_t * context, const char * data, size_t len) {
     (void) context;
-    return fwrite(data, 1, len, stdout);
+    
+    if(data == NULL || len == 0) {
+        return 0;
+    }
+    
+    configASSERT(xTxUartStream != NULL);
+    
+    size_t free_space = xStreamBufferSpacesAvailable(xTxUartStream);
+    if(free_space < len) {
+        len = free_space;
+        if(len == 0) {
+            return 0;
+        }
+    }
+    
+    size_t sent = xStreamBufferSend(xTxUartStream, data, len, 0);
+    return sent;
 }
 
 scpi_result_t SCPI_Flush(scpi_t * context) {
@@ -61,9 +79,40 @@ scpi_result_t SCPI_Flush(scpi_t * context) {
 
 int SCPI_Error(scpi_t * context, int_fast16_t err) {
     (void) context;
-
-    // fprintf(stderr, "**ERROR: %d, \"%s\"\r\n", (int16_t) err, SCPI_ErrorTranslate(err));
-    return 0;
+    
+    char error_msg[128];
+    int msg_len = 0;
+    
+    msg_len = snprintf(error_msg, sizeof(error_msg), 
+                       "**ERROR: %d, \"%s\"\r\n", 
+                       (int16_t) err, 
+                       SCPI_ErrorTranslate(err));
+    
+    if(msg_len <= 0 || msg_len >= sizeof(error_msg)) {
+        msg_len = snprintf(error_msg, sizeof(error_msg), 
+                          "**ERROR: %d\r\n", (int16_t) err);
+        if(msg_len <= 0) {
+            return 0;
+        }
+    }
+    
+    if(xTxUartStream == NULL) {
+        return 0;
+    }
+    
+    size_t free_space = xStreamBufferSpacesAvailable(xTxUartStream);
+    size_t to_send = (size_t)msg_len;
+    
+    if(free_space < to_send) {
+        to_send = free_space;
+        if(to_send == 0) {
+            return 0; 
+        }
+    }
+    
+    size_t sent = xStreamBufferSend(xTxUartStream, error_msg, to_send, 0);
+    
+    return (sent > 0) ? 0 : -1;
 }
 
 scpi_result_t SCPI_Control(scpi_t * context, scpi_ctrl_name_t ctrl, scpi_reg_val_t val) {
@@ -323,6 +372,9 @@ const scpi_command_t scpi_commands[] = {
     {.pattern = "DISPlay:PICTURE", .callback = SCPI_Display_picture,},
     {.pattern = "DISPlay:SLOW", .callback = SCPI_Display_slow,},
 
+    /* ADS ADS7886 */
+    {.pattern = "SPI:ADC:DUMP", .callback = SCPI_adc_dump_n,},
+
     /* I2C Bus */
     {.pattern = "I2C:SCAN", .callback = SCPI_I2C_scan,},
     {.pattern = "I2C:WRITE", .callback = SCPI_I2C_write,},
@@ -344,3 +396,36 @@ char scpi_input_buffer[SCPI_INPUT_BUFFER_LENGTH];
 scpi_error_t scpi_error_queue_data[SCPI_ERROR_QUEUE_SIZE];
 
 scpi_t scpi_context;
+
+/* RTOS --------------------------------- */
+
+void vSCPI_task(void *parameters)
+{
+    (void)parameters;
+
+    SCPI_Init(&scpi_context,
+              scpi_commands,
+              &scpi_interface,
+              scpi_units_def,
+              SCPI_IDN1, SCPI_IDN2, SCPI_IDN3, SCPI_IDN4,
+              scpi_input_buffer, SCPI_INPUT_BUFFER_LENGTH,
+              scpi_error_queue_data, SCPI_ERROR_QUEUE_SIZE);
+
+    char buffer[64];
+    size_t received = 0;
+    while (true)
+    {
+        if (xStreamBufferIsFull(xRxUartStream) == pdFALSE)
+        {
+            received = xStreamBufferReceive(xRxUartStream, buffer, sizeof(buffer), pdMS_TO_TICKS(10));
+            if (received > 0)
+            {
+                SCPI_Input(&scpi_context, buffer, received);
+            }
+        }
+        else
+        {
+            vTaskDelay(50);
+        }
+    }
+}

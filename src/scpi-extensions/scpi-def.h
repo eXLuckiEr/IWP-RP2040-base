@@ -1,4 +1,4 @@
-/*-
+/*
  * BSD 2-Clause License
  *
  * Copyright (c) 2012-2018, Jan Breuer
@@ -33,6 +33,7 @@ extern "C" {
 #endif
 
 #include "scpi/scpi.h"
+// #include <task.h>
 
 #define SCPI_INPUT_BUFFER_LENGTH 256
 #define SCPI_ERROR_QUEUE_SIZE 17
@@ -68,6 +69,12 @@ scpi_result_t SCPI_I2C_scan(scpi_t * context);
 scpi_result_t SCPI_I2C_write(scpi_t * context);
 scpi_result_t SCPI_I2C_read(scpi_t * context);
 scpi_result_t SCPI_Test_PCAL6534_Registers(scpi_t *context);
+
+scpi_result_t SCPI_adc_dump_n(scpi_t * context);
+
+
+/* RTOS */
+void vSCPI_task(void *parameters) __attribute__((noreturn));
 
 #ifdef __cplusplus
 }
