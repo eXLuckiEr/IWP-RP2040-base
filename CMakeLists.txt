@@ -4,9 +4,9 @@ if(WIN32)
 else()
     set(USERHOME $ENV{HOME})
 endif()
-set(sdkVersion 2.1.1)
+set(sdkVersion 2.2.0)
 set(toolchainVersion 14_2_Rel1)
-set(picotoolVersion 2.1.1)
+set(picotoolVersion 2.2.0-a4)
 set(picoVscode ${USERHOME}/.pico-sdk/cmake/pico-vscode.cmake)
 if (EXISTS ${picoVscode})
     include(${picoVscode})
@@ -58,8 +58,10 @@ add_executable(rp2040-spi
     ${SOURCE_FOLDER}/scpi-extensions/scpi-def.c
     ${SOURCE_FOLDER}/scpi-extensions/SCPI_Test_PCAL6534.c
     ${SOURCE_FOLDER}/scpi-extensions/SCPI_Test_SSD1309.c
+    ${SOURCE_FOLDER}/scpi-extensions/SCPI_Test_ADS7886.c
     ${SOURCE_FOLDER}/ssd1309-driver/driver_ssd1309_interface.c
     ${SOURCE_FOLDER}/ssd1309-driver/driver_ssd1309_advance.c
+    ${SOURCE_FOLDER}/hardware/uart_handle.c
 )
 
 target_include_directories(rp2040-spi PRIVATE
@@ -77,6 +79,7 @@ pico_enable_stdio_usb(rp2040-spi 1)
 
 target_link_libraries(rp2040-spi
     pico_stdlib
+    hardware_dma
     hardware_spi
     hardware_i2c
     scpi_lib 
