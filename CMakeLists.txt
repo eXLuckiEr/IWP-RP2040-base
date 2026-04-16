@@ -62,6 +62,7 @@ add_executable(rp2040-spi
     ${SOURCE_FOLDER}/ssd1309-driver/driver_ssd1309_interface.c
     ${SOURCE_FOLDER}/ssd1309-driver/driver_ssd1309_advance.c
     ${SOURCE_FOLDER}/hardware/uart_handle.c
+    ${SOURCE_FOLDER}/hardware/dma_adc.c
 )
 
 target_include_directories(rp2040-spi PRIVATE
