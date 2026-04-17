@@ -1,6 +1,7 @@
 /* FreeRTOS includes. */
 #include <FreeRTOS.h>
 #include <task.h>
+#include <message_buffer.h>
 
 /* Standard includes. */
 #include <stdio.h>
@@ -8,19 +9,23 @@
 
 /* */
 #include <timers.h>
+#include <hardware/spi.h>
 #include "pico/stdlib.h"
 
 /* Project includes. */
 #include "config/hardware_config.h"
 #include "hardware/uart_handle.h"
 #include "scpi-extensions/scpi-def.h"
-// #include "hardware/dma_adc.h"
+#include "hardware/dma_adc.h"
 
 struct repeating_timer led_timer;
 struct repeating_timer adc_timer;
 
 TaskHandle_t vUart_handle = NULL;
 TaskHandle_t vSCPI_handle = NULL;
+TaskHandle_t vProcessing_handle = NULL;
+
+MessageBufferHandle_t xAdcMessageBuffer;
 
 bool led_timer_callback(__unused struct repeating_timer *rt);
 bool adc_timer_callback(__unused struct repeating_timer *rt);
@@ -32,8 +37,8 @@ int main()
     stdio_init_all();
     hardware_init();
 
-    // xAdcMessageBuffer = xMessageBufferCreate(MESSAGE_BUFFER_SIZE);
-    // configASSERT(xAdcMessageBuffer != NULL);
+    xAdcMessageBuffer = xMessageBufferCreate(MESSAGE_BUFFER_SIZE);
+    configASSERT(xAdcMessageBuffer != NULL);
 
     xRxUartStream = xStreamBufferCreate(UART_QUEUE_LENGTH, sizeof(uint8_t));
     configASSERT(xRxUartStream != NULL);
@@ -42,10 +47,10 @@ int main()
     configASSERT(xTxUartStream != NULL);
 
     // Create tasks
-    xTaskCreate(vSCPI_task, "vSCPI_task", configMINIMAL_STACK_SIZE + 256, NULL, 2, &vSCPI_handle);
-    xTaskCreate(vUart_task, "vUart_task", configMINIMAL_STACK_SIZE + 256, NULL, 2, &vUart_handle);
+    xTaskCreate(vSCPI_task, "vSCPI_task", STACK_SCPI, NULL, 2, &vSCPI_handle);
+    xTaskCreate(vUart_task, "vUart_task", STACK_UART, NULL, 2, &vUart_handle);
     // xTaskCreate(vADC_DMA_task, "ADC_DMA", configMINIMAL_STACK_SIZE + 256, NULL, 3, &ADC_DmaHandle);
-    // xTaskCreate(vProcessing_task, "Processing", configMINIMAL_STACK_SIZE + 512, NULL, 2, &ProcessingHandle);
+    xTaskCreate(vProcessing_task, "Processing", configMINIMAL_STACK_SIZE + 512, NULL, 2, &vProcessing_handle);
 
     // Start
     vTaskStartScheduler();
@@ -62,9 +67,12 @@ void hardware_init(void)
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
 
+    /* SPI ------------------------------------------- */
+    dma_adc_init();
+
     /* TIMERS ------------------------------------------- */
-    add_repeating_timer_ms(100, led_timer_callback, NULL, &led_timer);
-    add_repeating_timer_us(500, adc_timer_callback, NULL, &adc_timer);
+    add_repeating_timer_ms(500, led_timer_callback, NULL, &led_timer);
+    add_repeating_timer_us(250, adc_timer_callback, NULL, &adc_timer);
     // add_repeating_timer_us(-1000000 / ADC_SAMPLE_RATE, adc_timer_callback, NULL, &adc_timer);
 
     /* I2C ------------------------------------------- */
@@ -88,25 +96,10 @@ bool led_timer_callback(__unused struct repeating_timer *rt)
 
 bool adc_timer_callback(struct repeating_timer *rt)
 {
-    static int value = 0;
-
-    char error_msg[32];
-    int msg_len = 0;
-
-    msg_len = snprintf(error_msg, sizeof(error_msg),
-                       "Tik #%d\r\n", value);
-
-    size_t free_space = xStreamBufferSpacesAvailable(xTxUartStream);
-    size_t to_send = (size_t)msg_len;
-
-    if (free_space < to_send)
-    {
-        to_send = free_space;
+    uint16_t sample;
+    spi_read16_blocking(SPI_PORT, (uint16_t)(0xffff), &sample, 1);
+    if(xMessageBufferIsFull(xAdcMessageBuffer) == pdFALSE){
+        xMessageBufferSend(xAdcMessageBuffer, &sample, sizeof(uint16_t), pdMS_TO_TICKS(0));
     }
-
-    size_t sent = xStreamBufferSend(xTxUartStream, error_msg, to_send, 0);
-    value += 1;
-    // dma_channel_start(dma_tx_channel);
-    // dma_channel_start(dma_rx_channel);
-    return true; // true = продолжаем таймер
+    return true;
 }
