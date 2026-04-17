@@ -37,6 +37,6 @@
 
 // UART Buffers
 #define UART_RX_BUFFER_SIZE     256     // Размер RX буфера
-#define UART_TX_BUFFER_SIZE     4096    // Размер TX буфера (увеличен для предотвращения переполнения)
+#define UART_TX_BUFFER_SIZE     (4096*2)    // Размер TX буфера (увеличен для предотвращения переполнения)
 
 #endif
