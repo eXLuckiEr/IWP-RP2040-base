@@ -11,7 +11,7 @@
 // ADC configuration
 #define ADC_SAMPLE_RATE 100
 #define ADC_BYTES_PER_SAMPLE 2
-#define DMA_BUFFER_SIZE 256
+#define DMA_BUFFER_SIZE 2048
 #define DMA_BUFFER_BYTES (DMA_BUFFER_SIZE * ADC_BYTES_PER_SAMPLE)
 #define MESSAGE_BUFFER_SIZE 4096
 
@@ -38,5 +38,8 @@
 // UART Buffers
 #define UART_RX_BUFFER_SIZE     256     // Размер RX буфера
 #define UART_TX_BUFFER_SIZE     (4096*2)    // Размер TX буфера (увеличен для предотвращения переполнения)
+
+#define TEST_SIZE 1024
+#define BUFFER_SIZE  1024
 
 #endif

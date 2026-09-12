@@ -55,7 +55,6 @@ scpi_result_t SCPI_Reset(scpi_t * context);
 scpi_result_t SCPI_Flush(scpi_t * context);
 
 // User tasks
-scpi_result_t SCPI_Dump_adc(scpi_t * context);
 scpi_result_t SCPI_Display_test(scpi_t * context);
 scpi_result_t SCPI_Display_state(scpi_t * context);
 scpi_result_t SCPI_Display_clear(scpi_t * context);

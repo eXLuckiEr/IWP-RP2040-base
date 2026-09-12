@@ -297,41 +297,6 @@ static scpi_result_t My_CoreTstQ(scpi_t * context) {
     return SCPI_RES_OK;
 }
 
-scpi_result_t SCPI_Dump_adc(scpi_t * context)
-{
-
-    (void) context;
-    uint32_t param1;
-
-    if (!SCPI_ParamUInt32(context, &param1, FALSE)) {
-        param1 = 256;
-    }
-
-    printf("%s\n", __FUNCTION__);
-
-    uint16_t buffer[64];
-    size_t received = 0;
-    // while (param1) {
-    //     received = xStreamBufferReceive(SpiStream, buffer, sizeof(buffer), pdMS_TO_TICKS(10));
-    //     received /= sizeof(uint16_t);
-    //     if(received > 0){
-    //         for(int i=0; i<received; i++){
-    //             if(param1 == 0) 
-    //                 break;
-    //             else 
-    //                 param1--;
-                    
-    //             float voltage = (float)(buffer[i]) * (5.0 / 4096.0);
-    //             printf("ADC Value: %04x, Voltage: %.6f\n", buffer[i], voltage);
-                
-    //         }
-    //     }
-    //     taskYIELD();
-    // }
-
-    return SCPI_RES_OK;
-}
-
 const scpi_command_t scpi_commands[] = {
     /* IEEE Mandated Commands (SCPI std V1999.0 4.1.1) */
     { .pattern = "*CLS", .callback = SCPI_CoreCls,},
@@ -359,9 +324,6 @@ const scpi_command_t scpi_commands[] = {
     // {.pattern = "MEASure:VOLTage:AC?", .callback = DMM_MeasureVoltageAcQ,},
     {.pattern = "MEASure:FREQuency?", .callback = SCPI_StubQ,},
     {.pattern = "MEASure:PERiod?", .callback = SCPI_StubQ,},
-
-    /* ADC */
-    {.pattern = "MEASure:DUMP", .callback = SCPI_Dump_adc,},
 
     /* Dipslay */
     {.pattern = "DISPlay:STATE", .callback = SCPI_Display_state,},

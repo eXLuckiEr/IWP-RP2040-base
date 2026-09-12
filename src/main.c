@@ -23,6 +23,7 @@ struct repeating_timer adc_timer;
 
 TaskHandle_t vUart_handle = NULL;
 TaskHandle_t vSCPI_handle = NULL;
+TaskHandle_t vDmaBuffering_handle = NULL;
 TaskHandle_t vProcessing_handle = NULL;
 
 MessageBufferHandle_t xAdcMessageBuffer;
@@ -49,7 +50,7 @@ int main()
     // Create tasks
     xTaskCreate(vSCPI_task, "vSCPI_task", STACK_SCPI, NULL, 2, &vSCPI_handle);
     xTaskCreate(vUart_task, "vUart_task", STACK_UART, NULL, 2, &vUart_handle);
-    // xTaskCreate(vADC_DMA_task, "ADC_DMA", configMINIMAL_STACK_SIZE + 256, NULL, 3, &ADC_DmaHandle);
+    xTaskCreate(vDmaBuffering_task, "vDmaBuffering_task", configMINIMAL_STACK_SIZE + 256, NULL, 3, &vDmaBuffering_handle);
     xTaskCreate(vProcessing_task, "Processing", configMINIMAL_STACK_SIZE + 512, NULL, 2, &vProcessing_handle);
 
     // Start
@@ -63,19 +64,19 @@ int main()
 void hardware_init(void)
 {
 
-    /* GPIO ------------------------------------------- */
+    /* GPIO -------------------------------------------- */
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
 
-    /* SPI ------------------------------------------- */
+    /* SPI --------------------------------------------- */
     dma_adc_init();
 
-    /* TIMERS ------------------------------------------- */
+    /* TIMERS ------------------------------------------ */
     add_repeating_timer_ms(500, led_timer_callback, NULL, &led_timer);
-    add_repeating_timer_us(250, adc_timer_callback, NULL, &adc_timer);
+    // add_repeating_timer_ms(1000, adc_timer_callback, NULL, &adc_timer);
     // add_repeating_timer_us(-1000000 / ADC_SAMPLE_RATE, adc_timer_callback, NULL, &adc_timer);
 
-    /* I2C ------------------------------------------- */
+    /* I2C --------------------------------------------- */
     // This example will use I2C0 on the default SDA and SCL pins (GP4, GP5 on a Pico)
     // i2c_init(I2C_PORT, 100 * 1000);
     // gpio_set_function(I2C_SDA, GPIO_FUNC_I2C);
@@ -83,7 +84,7 @@ void hardware_init(void)
     // gpio_pull_up(I2C_SDA);
     // gpio_pull_up(I2C_SCLK);
 
-    /* Display ------------------------------------------- */
+    /* Display ----------------------------------------- */
     // ssd1309_advance_init(SSD1309_INTERFACE_SPI, SSD1309_ADDR_SA0_0);
 }
 
