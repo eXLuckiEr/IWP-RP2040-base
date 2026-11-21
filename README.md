@@ -1,83 +1,106 @@
-# RP2040 Pico SPI
+# RP2040 SCPI Base
 
-## Описание
+Стартовая точка для устройств на RP2040, которыми нужно управлять снаружи:
+**FreeRTOS + SCPI поверх USB-CDC + фоновые задачи, которые не блокируют приём команд**.
 
-Базовый фреймворк для разработки проектов на микроконтроллере RP2040. Проект предоставляет готовую инфраструктуру для работы с SPI периферией, включая АЦП и OLED дисплеи, с поддержкой многозадачности через FreeRTOS и возможностью управления через SCPI команды.
-
-## Особенности
-
-- 🚀 **FreeRTOS** - многозадачная операционная система реального времени
-- 📡 **SCPI Parser** - поддержка стандартных команд для измерительных приборов
-- 🖥 **SSD1309 Driver** - драйвер для OLED дисплеев
-- 🎯 **RP2040** - двухъядерный ARM Cortex-M0+ процессор
-
-## Структура проекта
+## Архитектура
 
 ```
-.
-├── libs/
-│   ├── FreeRTOS-Kernel/    # RTOS ядро
-│   ├── scpi-parser/        # SCPI парсер команд
-│   └── ssd1309/            # Драйвер OLED дисплея
-├── src/                    # Исходный код проекта
-├── include/                # Заголовочные файлы
-└── CMakeLists.txt         # Конфигурация сборки
+ хост ──USB-CDC──► transport ──RX stream──► scpi (разбор) ──► SCPI-колбэк
+   ▲                  ▲                                          │ job_start()/job_stop()
+   │                  └──────── TX stream ◄── transport_write() ◄┤
+   └──────────── SCPI-ответы и потоки данных ◄──────────────── job (фоновая задача)
 ```
 
-## Требования
+```
+src/
+├── main.c                 создаёт задачи, больше ничего
+├── config/board_config.h  пины, приоритеты, стеки, размеры буферов, *IDN?
+├── core/                  БАЗА — трогать редко
+│   ├── transport.{c,h}    USB-CDC <-> потоки байт, потокобезопасный transport_write()
+│   ├── scpi_port.{c,h}    libscpi + FreeRTOS, буферизация ответов
+│   ├── scpi_commands.c    таблица команд (IEEE 488.2, SYST:*, ABORt) + подключение модулей
+│   └── job.{c,h}          фоновая задача со start/stop
+├── app/                   ВАШ КОД
+│   ├── app.c              инициализация примеров/модулей
+│   └── adc_dump.{c,h}     пример: DMA-дамп SPI-АЦП, ASCII/бинарный, START/STOP
+└── modules/               опциональные модули (выключены по умолчанию)
+    ├── i2c_tools/         I2C:SCAN? / READ? / WRITE
+    └── display/           OLED SSD1309
+```
 
-- **Pico SDK** версии 1.5.0 или выше
-- **CMake** версии 3.13 или выше
-- **ARM GCC Toolchain** для компиляции
-- **Git** для работы с субмодулями
+Примеры включаются в CMake: `-DENABLE_ADC_DUMP=ON|OFF`, `-DENABLE_I2C_TOOLS=ON`, `-DENABLE_DISPLAY=ON`.
 
-## Установка
+## Как не блокировать SCPI
 
-1. Клонируйте репозиторий с субмодулями:
+SCPI-колбэк выполняется в SCPI-задаче: пока он работает, следующие команды не разбираются.
+Поэтому правило одно: **колбэк быстро возвращается, долгая работа живёт в `job`**.
+
+```c
+static job_t s_job;
+
+static void my_job(job_t *job, void *arg) {
+    while (!job_stop_requested(job)) {
+        measure_and_send();                    // transport_write(...)
+        job_wait(job, pdMS_TO_TICKS(100));     // просыпается раньше по STOP
+    }
+    cleanup();
+}
+
+job_init(&s_job, "my", my_job, STACK_JOB_DEFAULT, PRIO_JOB);   // один раз, в *_init()
+
+scpi_result_t my_start(scpi_t *c) { return job_start(&s_job, NULL) ? SCPI_RES_OK : err(c); }
+scpi_result_t my_stop(scpi_t *c)  { job_stop(&s_job, pdMS_TO_TICKS(500)); return SCPI_RES_OK; }
+```
+
+Остановить дамп можно четырьмя способами: `ADC:DUMP:STOP`, `ABORt`, `*RST`, а также
+байтом `0x03` (Ctrl-C) прямо в потоке — он перехватывается в `transport` в обход
+парсера, и ещё автоматически при отключении USB.
+
+### Как отделить конец потока от ответов
+
+`STOP` возвращается только после остановки потока, а ответы SCPI уходят целыми
+сообщениями (не вклиниваются внутрь чанка данных). Поэтому:
+
+```
+ADC:DUMP:STOP;*OPC?     → всё до "1" — данные дампа, после — тишина
+```
+
+## Пример SCPI-команд (adc_dump)
+
+| Команда | Действие |
+|---|---|
+| `ADC:DUMP:STARt [N]` | запуск; `N` отсчётов или без `N` — до `STOP` |
+| `ADC:DUMP:STOP` | остановка |
+| `ADC:DUMP:STATe?` | `IDLE` / `RUN` |
+| `ADC:DUMP:FORMat ASCii\|BINary` | формат (только в `IDLE`) |
+| `ADC:DUMP:RATE <Гц>` | частота отсчётов (только в `IDLE`) |
+| `ADC:DUMP:STATistics?` | `отсчётов,чанков,потеряно_чанков,переполнений_DMA` |
+| `ABORt` | остановить все фоновые задачи |
+| `SYSTem:ERRor?` | очередь ошибок (ошибки в поток не печатаются, см. `SCPI_ECHO_ERRORS`) |
+
+Форматы:
+- ASCII: `>Val:1234\r\n` на отсчёт (префикс — `ADC_ASCII_PREFIX`);
+- BINary: пакеты `A5 5A | seq u16 | n u16 | n × u16` (little-endian). `seq` растёт на 1 за пакет,
+  по разрыву хост видит потерю данных.
+
+Если хост не успевает читать, чанки отбрасываются (счётчик `dropped`), а не копятся и не вешают устройство.
+
+## Сборка
+
 ```bash
-git clone --recursive https://github.com/yourusername/rp2040-framework.git
-cd rp2040-framework
-
-2. Если субмодули не были загружены автоматически:
 git submodule update --init --recursive
-
-3. Установите Pico SDK (если еще не установлен):
-git clone https://github.com/raspberrypi/pico-sdk.git
-export PICO_SDK_PATH=/path/to/pico-sdk
+export PICO_SDK_PATH=/path/to/pico-sdk   # или Pico VS Code extension
+mkdir build && cd build
+cmake .. -DENABLE_ADC_DUMP=ON
+make -j
 ```
 
-## Используемые библиотеки
+Библиотеки: FreeRTOS-Kernel (MIT), scpi-parser (BSD-2), ssd1309 libdriver (MIT, только для модуля display).
 
-### FreeRTOS-Kernel
-Операционная система реального времени для встраиваемых систем. Обеспечивает:
-- Многозадачность с приоритетами
-- Синхронизацию задач (семафоры, мьютексы, очереди)
-- Управление памятью
+## Что убрано относительно прежней версии
 
-### SCPI Parser
-Парсер команд стандарта SCPI (Standard Commands for Programmable Instruments):
-- Совместимость с измерительным оборудованием
-- Расширяемая система команд
-- Обработка ошибок по стандарту
-
-### SSD1309 Driver
-Драйвер для монохромных OLED дисплеев:
-- Поддержка SPI/I2C интерфейсов
-- Разрешение до 128x64
-- Графические примитивы
-
-## Планы развития
-
-- [ ] Добавление поддержки I2C периферии
-- [ ] Интеграция драйверов популярных АЦП (ADS1256, MCP3008)
-- [ ] Поддержка USB CDC для SCPI команд
-- [ ] Добавление HAL слоя для периферии
-
-## Лицензия
-
-Данный проект использует различные лицензии для субмодулей:
-- FreeRTOS-Kernel: MIT License
-- SCPI Parser: BSD 2-Clause License
-- SSD1309: MIT License
-
-Основной код проекта распространяется под лицензией MIT.
+Демо-команды дисплея (`PICTURE/SQUARE/POINT/SLOW`), регистровый тест PCAL6534,
+заглушки `MEASure:*`, неиспользуемый `TEST_Chanlst`, `printf` в SCPI-колбэках
+(они уходили в тот же USB-поток, что и данные), «UART»-названия для USB-CDC.
+Всё это остаётся в истории git ветки `main`.

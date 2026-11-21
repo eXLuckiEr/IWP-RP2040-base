@@ -20,6 +20,11 @@ cmake_minimum_required(VERSION 3.12)
 SET(ProjectName rp2040-spi)
 SET(SOURCE_FOLDER src)
 
+# ---- Какие примеры/модули включить: cmake -DENABLE_I2C_TOOLS=ON .. ---------
+option(ENABLE_ADC_DUMP  "Пример: DMA-дамп SPI-АЦП (SPI:ADC)"      ON)
+option(ENABLE_I2C_TOOLS "Модуль: I2C:SCAN?/READ?/WRITE"            OFF)
+option(ENABLE_DISPLAY   "Модуль: OLED SSD1309 (нужен libs/ssd1309)" OFF)
+
 # Set any variables required for importing libraries
 SET(FREERTOS_KERNEL_PATH ${CMAKE_CURRENT_SOURCE_DIR}/libs/FreeRTOS-Kernel)
 SET(SCPI_LIB_PATH ${CMAKE_CURRENT_SOURCE_DIR}/libs/scpi-parser/libscpi)
@@ -35,61 +40,75 @@ project(rp2040-spi)
 # Initialize the Raspberry Pi Pico SDK
 pico_sdk_init()
 
-# Добавьте исходные файлы SCPI в проект
+# ---- SCPI parser -------------------------------------------------------------
 file(GLOB SCPI_SRCS ${SCPI_LIB_PATH}/src/*.c)
 add_library(scpi_lib STATIC ${SCPI_SRCS})
-
-target_include_directories(scpi_lib PRIVATE
+target_include_directories(scpi_lib PUBLIC
     ${CMAKE_CURRENT_LIST_DIR}
     ${SCPI_LIB_PATH}/inc
 )
 
-# Добавьте исходные файлы SSD1309 в проект
-file(GLOB SSD1309_SRCS ${SSD1309_LIB_PATH}/src/*.c)
-add_library(ssd1309_lib STATIC ${SSD1309_SRCS})
-
-target_include_directories(ssd1309_lib PRIVATE
-    ${CMAKE_CURRENT_LIST_DIR}
-    ${SSD1309_LIB_PATH}/src
-)
-
+# ---- Ядро: транспорт + SCPI + фоновые задачи ---------------------------------
 add_executable(rp2040-spi
     ${SOURCE_FOLDER}/main.c
-    ${SOURCE_FOLDER}/scpi-extensions/scpi-def.c
-    ${SOURCE_FOLDER}/scpi-extensions/SCPI_Test_PCAL6534.c
-    ${SOURCE_FOLDER}/scpi-extensions/SCPI_Test_SSD1309.c
-    ${SOURCE_FOLDER}/scpi-extensions/SCPI_Test_ADS7886.c
-    ${SOURCE_FOLDER}/ssd1309-driver/driver_ssd1309_interface.c
-    ${SOURCE_FOLDER}/ssd1309-driver/driver_ssd1309_advance.c
-    ${SOURCE_FOLDER}/hardware/uart_handle.c
-    ${SOURCE_FOLDER}/hardware/dma_adc.c
+    ${SOURCE_FOLDER}/core/job.c
+    ${SOURCE_FOLDER}/core/transport.c
+    ${SOURCE_FOLDER}/core/scpi_port.c
+    ${SOURCE_FOLDER}/core/scpi_commands.c
+    ${SOURCE_FOLDER}/core/sysinfo.c
+    ${SOURCE_FOLDER}/app/app.c
 )
 
 target_include_directories(rp2040-spi PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}
-    ${SCPI_LIB_PATH}/inc
-    ${SSD1309_LIB_PATH}/src
-    ${SOURCE_FOLDER}/
-    ${SOURCE_FOLDER}/scpi-extensions/
-    ${SOURCE_FOLDER}/ssd1309-driver/
+    ${SOURCE_FOLDER}
 )
 
-# Modify the below lines to enable/disable output over UART/USB
+set(APP_LIBS "")
+
+# ---- Примеры / модули --------------------------------------------------------
+if(ENABLE_ADC_DUMP)
+    target_sources(rp2040-spi PRIVATE ${SOURCE_FOLDER}/app/adc_dump.c)
+    target_compile_definitions(rp2040-spi PRIVATE APP_ADC_DUMP=1)
+    list(APPEND APP_LIBS hardware_dma hardware_spi hardware_clocks hardware_irq)
+endif()
+
+if(ENABLE_I2C_TOOLS)
+    target_sources(rp2040-spi PRIVATE ${SOURCE_FOLDER}/modules/i2c_tools/scpi_i2c.c)
+    target_compile_definitions(rp2040-spi PRIVATE APP_I2C_TOOLS=1)
+    list(APPEND APP_LIBS hardware_i2c)
+endif()
+
+if(ENABLE_DISPLAY)
+    file(GLOB SSD1309_SRCS ${SSD1309_LIB_PATH}/src/*.c)
+    add_library(ssd1309_lib STATIC ${SSD1309_SRCS})
+    target_include_directories(ssd1309_lib PRIVATE ${CMAKE_CURRENT_LIST_DIR} ${SSD1309_LIB_PATH}/src)
+
+    target_sources(rp2040-spi PRIVATE
+        ${SOURCE_FOLDER}/modules/display/scpi_display.c
+        ${SOURCE_FOLDER}/modules/display/driver/driver_ssd1309_interface.c
+        ${SOURCE_FOLDER}/modules/display/driver/driver_ssd1309_advance.c
+    )
+    target_include_directories(rp2040-spi PRIVATE
+        ${SOURCE_FOLDER}/modules/display/driver
+        ${SSD1309_LIB_PATH}/src
+    )
+    target_compile_definitions(rp2040-spi PRIVATE APP_DISPLAY=1)
+    list(APPEND APP_LIBS ssd1309_lib hardware_spi)
+endif()
+
+# USB-CDC — канал SCPI (см. core/transport.c). UART-stdio выключен.
 pico_enable_stdio_uart(rp2040-spi 0)
 pico_enable_stdio_usb(rp2040-spi 1)
 
 target_link_libraries(rp2040-spi
     pico_stdlib
-    hardware_dma
-    hardware_spi
-    hardware_i2c
-    scpi_lib 
-    ssd1309_lib
-    FreeRTOS-Kernel-Heap4 
-    )
+    pico_unique_id
+    hardware_adc
+    hardware_clocks
+    scpi_lib
+    FreeRTOS-Kernel-Heap4
+    ${APP_LIBS}
+)
 
 pico_add_extra_outputs(rp2040-spi)
-
-# if you have anything in "lib" folder then uncomment below - remember to add a CMakeLists.txt
-# file to the "lib" directory
-#add_subdirectory(lib)
