@@ -46,6 +46,7 @@
 #include "config/board_config.h"
 #include "core/job.h"
 #include "core/sysinfo.h"
+#include "core/gpio_info.h"
 
 #if APP_ADC_DUMP
 #include "app/adc_dump.h"
@@ -91,6 +92,9 @@ const scpi_command_t scpi_commands[] = {
 
     /* Информация о самом чипе (core/sysinfo.c) */
     SYSINFO_SCPI_COMMANDS
+
+    /* Состояние пинов GPIO (core/gpio_info.c) */
+    GPIO_INFO_SCPI_COMMANDS
 
     /* Остановка всего, что работает в фоне */
     { .pattern = "ABORt", .callback = scpi_abort, },

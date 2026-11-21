@@ -59,6 +59,7 @@ add_executable(iwp-rp2040-base
     ${SOURCE_FOLDER}/core/scpi_port.c
     ${SOURCE_FOLDER}/core/scpi_commands.c
     ${SOURCE_FOLDER}/core/sysinfo.c
+    ${SOURCE_FOLDER}/core/gpio_info.c
     ${SOURCE_FOLDER}/app/app.c
 )
 
