@@ -99,7 +99,7 @@ cmake .. -DENABLE_ADC_DUMP=ON
 make -j
 ```
 
-Библиотеки: FreeRTOS-Kernel (MIT), scpi-parser (BSD-2), ssd1309 libdriver (MIT, только для модуля display).
+Библиотеки и их лицензии — в [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
 
 ## Что убрано относительно прежней версии
 
@@ -107,3 +107,14 @@ make -j
 заглушки `MEASure:*`, неиспользуемый `TEST_Chanlst`, `printf` в SCPI-колбэках
 (они уходили в тот же USB-поток, что и данные), «UART»-названия для USB-CDC.
 Всё это остаётся в истории git ветки `main`.
+
+## Лицензия
+
+Собственный код проекта — **Mozilla Public License 2.0** (файл `LICENSE`, заголовок в каждом файле).
+Лицензия действует на уровне файлов: изменённые файлы под MPL при передаче прошивки третьим лицам нужно
+сопровождать исходниками этих файлов; ваши новые файлы приборов этим не затрагиваются.
+
+Исключения, которые остаются под своими лицензиями: `src/core/scpi_commands.c`, `scpi_port.c`, `scpi_port.h`
+(BSD 2-Clause, Jan Breuer), `src/modules/display/driver/` (MIT, LibDriver), `FreeRTOSConfig.h` (MIT, Amazon),
+`pico_sdk_import.cmake` (BSD 3-Clause, Raspberry Pi). Сторонние компоненты — см.
+[THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md); их уведомления об авторских правах удалять нельзя.
