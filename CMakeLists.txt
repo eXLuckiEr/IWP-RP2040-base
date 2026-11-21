@@ -43,6 +43,9 @@ pico_sdk_init()
 # ---- SCPI parser -------------------------------------------------------------
 file(GLOB SCPI_SRCS ${SCPI_LIB_PATH}/src/*.c)
 add_library(scpi_lib STATIC ${SCPI_SRCS})
+# Полный список кодов ошибок SCPI (SCPI_ERROR_SETTINGS_CONFLICT и др.). Макрос должен быть
+# одинаковым в библиотеке и в прошивке, поэтому PUBLIC.
+target_compile_definitions(scpi_lib PUBLIC USE_FULL_ERROR_LIST=1)
 target_include_directories(scpi_lib PUBLIC
     ${CMAKE_CURRENT_LIST_DIR}
     ${SCPI_LIB_PATH}/inc
