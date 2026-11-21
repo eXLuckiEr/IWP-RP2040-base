@@ -28,7 +28,7 @@
 /* ABORt — остановить все фоновые задачи. Возвращается, когда все остановлены. */
 static scpi_result_t scpi_abort(scpi_t *context)
 {
-    if (!job_stop_all(pdMS_TO_TICKS(500))) {
+    if (!iwp_job_stop_all(pdMS_TO_TICKS(500))) {
         SCPI_ErrorPush(context, SCPI_ERROR_EXECUTION_ERROR);
         return SCPI_RES_ERR;
     }

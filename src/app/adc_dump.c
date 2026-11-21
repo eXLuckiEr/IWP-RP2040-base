@@ -40,7 +40,7 @@ static const scpi_choice_def_t s_format_choices[] = {
 
 /* ---- Состояние ----------------------------------------------------------- */
 
-static job_t s_job;
+static iwp_job_t s_job;
 
 static volatile adc_format_t s_format  = FMT_ASCII;
 static volatile uint32_t     s_rate_hz = ADC_SAMPLE_RATE_DEFAULT_HZ;
@@ -84,7 +84,7 @@ static void dma_isr(void)
         }
     }
     if (events) {
-        job_notify_from_isr(&s_job, events);
+        iwp_job_notify_from_isr(&s_job, events);
     }
 }
 
@@ -193,7 +193,7 @@ static size_t format_chunk(const uint16_t *src, uint32_t n, adc_format_t fmt, ui
 
 /* ---- Задача -------------------------------------------------------------- */
 
-static void adc_job(job_t *job, void *arg)
+static void adc_job(iwp_job_t *job, void *arg)
 {
     uint32_t     remaining = (uint32_t)(uintptr_t)arg;     /* 0 = без ограничения */
     const bool   limited   = (remaining != 0);
@@ -205,10 +205,10 @@ static void adc_job(job_t *job, void *arg)
     memset((void *)&s_stats, 0, sizeof(s_stats));
     hw_start(rate);
 
-    while (!job_stop_requested(job)) {
-        job_wait(job, pdMS_TO_TICKS(250));
+    while (!iwp_job_stop_requested(job)) {
+        iwp_job_wait(job, pdMS_TO_TICKS(250));
 
-        while (s_pending[next] && !job_stop_requested(job)) {
+        while (s_pending[next] && !iwp_job_stop_requested(job)) {
             uint32_t n = ADC_N;
             if (limited && n > remaining) {
                 n = remaining;
@@ -218,7 +218,7 @@ static void adc_job(job_t *job, void *arg)
             s_pending[next] = false;                /* буфер свободен — данные уже скопированы */
             next ^= 1;
 
-            size_t sent = transport_write(s_scratch, len, pdMS_TO_TICKS(SEND_TIMEOUT_MS));
+            size_t sent = iwp_transport_write(s_scratch, len, pdMS_TO_TICKS(SEND_TIMEOUT_MS));
             if (sent == len) {
                 s_stats.chunks++;
                 s_stats.samples += n;
@@ -258,7 +258,7 @@ bool adc_dump_init(void)
     irq_add_shared_handler(DMA_IRQ_1, dma_isr, PICO_SHARED_IRQ_HANDLER_DEFAULT_ORDER_PRIORITY);
     irq_set_enabled(DMA_IRQ_1, true);
 
-    return job_init(&s_job, "adc_dump", adc_job, ADC_JOB_STACK, PRIO_JOB);
+    return iwp_job_init(&s_job, "adc_dump", adc_job, ADC_JOB_STACK, PRIO_JOB);
 }
 
 /* ---- SCPI ---------------------------------------------------------------- */
@@ -276,7 +276,7 @@ scpi_result_t adc_dump_scpi_start(scpi_t *context)
             return SCPI_RES_ERR;
         }
     }
-    if (!job_start(&s_job, (void *)(uintptr_t)count)) {
+    if (!iwp_job_start(&s_job, (void *)(uintptr_t)count)) {
         SCPI_ErrorPush(context, SCPI_ERROR_SETTINGS_CONFLICT);   /* уже запущен */
         return SCPI_RES_ERR;
     }
@@ -285,7 +285,7 @@ scpi_result_t adc_dump_scpi_start(scpi_t *context)
 
 scpi_result_t adc_dump_scpi_stop(scpi_t *context)
 {
-    if (!job_stop(&s_job, pdMS_TO_TICKS(STOP_TIMEOUT_MS))) {
+    if (!iwp_job_stop(&s_job, pdMS_TO_TICKS(STOP_TIMEOUT_MS))) {
         SCPI_ErrorPush(context, SCPI_ERROR_EXECUTION_ERROR);
         return SCPI_RES_ERR;
     }
@@ -294,7 +294,7 @@ scpi_result_t adc_dump_scpi_stop(scpi_t *context)
 
 scpi_result_t adc_dump_scpi_state_q(scpi_t *context)
 {
-    SCPI_ResultMnemonic(context, job_is_running(&s_job) ? "RUN" : "IDLE");
+    SCPI_ResultMnemonic(context, iwp_job_is_running(&s_job) ? "RUN" : "IDLE");
     return SCPI_RES_OK;
 }
 
@@ -304,7 +304,7 @@ scpi_result_t adc_dump_scpi_format(scpi_t *context)
     if (!SCPI_ParamChoice(context, s_format_choices, &v, TRUE)) {
         return SCPI_RES_ERR;
     }
-    if (job_is_running(&s_job)) {
+    if (iwp_job_is_running(&s_job)) {
         SCPI_ErrorPush(context, SCPI_ERROR_SETTINGS_CONFLICT);
         return SCPI_RES_ERR;
     }
@@ -330,7 +330,7 @@ scpi_result_t adc_dump_scpi_rate(scpi_t *context)
         SCPI_ErrorPush(context, SCPI_ERROR_DATA_OUT_OF_RANGE);
         return SCPI_RES_ERR;
     }
-    if (job_is_running(&s_job)) {
+    if (iwp_job_is_running(&s_job)) {
         SCPI_ErrorPush(context, SCPI_ERROR_SETTINGS_CONFLICT);
         return SCPI_RES_ERR;
     }

@@ -1,29 +1,29 @@
-#ifndef JOB_H
-#define JOB_H
+#ifndef IWP_JOB_H
+#define IWP_JOB_H
 
 /* ===========================================================================
  *  job — фоновая задача, запускаемая и останавливаемая командой.
  *
  *  Идея: SCPI-обработчик НИКОГДА не выполняет долгую работу сам. Он вызывает
- *  job_start() и сразу возвращает управление, поэтому SCPI-задача продолжает
+ *  iwp_job_start() и сразу возвращает управление, поэтому SCPI-задача продолжает
  *  читать поток команд (в том числе команду остановки).
  *
  *  Пример (см. app/adc_dump.c):
  *
- *      static job_t my_job;
+ *      static iwp_job_t my_job;
  *
- *      static void my_job_fn(job_t *job, void *arg) {
- *          while (!job_stop_requested(job)) {
+ *      static void my_job_fn(iwp_job_t *job, void *arg) {
+ *          while (!iwp_job_stop_requested(job)) {
  *              do_one_step();
- *              job_wait(job, pdMS_TO_TICKS(100));   // проснётся раньше по STOP
+ *              iwp_job_wait(job, pdMS_TO_TICKS(100));   // проснётся раньше по STOP
  *          }
  *      }
- *      job_init(&my_job, "my", my_job_fn, STACK_JOB_DEFAULT, PRIO_JOB);
+ *      iwp_job_init(&my_job, "my", my_job_fn, STACK_JOB_DEFAULT, PRIO_JOB);
  *      ...
- *      job_start(&my_job, NULL);     // из SCPI-колбэка
- *      job_stop(&my_job, pdMS_TO_TICKS(500));
+ *      iwp_job_start(&my_job, NULL);     // из SCPI-колбэка
+ *      iwp_job_stop(&my_job, pdMS_TO_TICKS(500));
  *
- *  Задача создаётся один раз при job_init() и «паркуется» до job_start().
+ *  Задача создаётся один раз при iwp_job_init() и «паркуется» до iwp_job_start().
  * ======================================================================== */
 
 #include <stdbool.h>
@@ -32,16 +32,16 @@
 #include <task.h>
 #include <event_groups.h>
 
-#define JOB_MAX_JOBS        4
-/* Биты уведомлений, доступные пользователю (job_notify / job_notify_from_isr) */
-#define JOB_USER_BITS_MASK  0x3FFFFFFFu
+#define IWP_JOB_MAX_JOBS        4
+/* Биты уведомлений, доступные пользователю (iwp_job_notify / iwp_job_notify_from_isr) */
+#define IWP_JOB_USER_BITS_MASK  0x3FFFFFFFu
 
-typedef struct job_s job_t;
-typedef void (*job_fn_t)(job_t *job, void *arg);
+typedef struct iwp_job_s iwp_job_t;
+typedef void (*iwp_job_fn_t)(iwp_job_t *job, void *arg);
 
-struct job_s {
+struct iwp_job_s {
     const char       *name;
-    job_fn_t          fn;
+    iwp_job_fn_t          fn;
     void             *arg;
     TaskHandle_t      task;
     EventGroupHandle_t idle_event;
@@ -50,33 +50,33 @@ struct job_s {
 };
 
 /* Создать (запаркованную) задачу. false — не хватило памяти или слотов. */
-bool job_init(job_t *job, const char *name, job_fn_t fn,
+bool iwp_job_init(iwp_job_t *job, const char *name, iwp_job_fn_t fn,
               uint16_t stack_words, UBaseType_t priority);
 
 /* Запустить. false, если уже выполняется. Не блокирует. */
-bool job_start(job_t *job, void *arg);
+bool iwp_job_start(iwp_job_t *job, void *arg);
 
 /* Попросить остановиться (не блокирует). */
-void job_request_stop(job_t *job);
+void iwp_job_request_stop(iwp_job_t *job);
 
 /* Попросить остановиться и дождаться завершения. true — job уже не работает. */
-bool job_stop(job_t *job, TickType_t timeout);
+bool iwp_job_stop(iwp_job_t *job, TickType_t timeout);
 
-bool job_is_running(const job_t *job);
+bool iwp_job_is_running(const iwp_job_t *job);
 
 /* Остановить все job (ABORt, *RST, потеря USB). */
-void job_request_stop_all(void);
-bool job_stop_all(TickType_t timeout);
+void iwp_job_request_stop_all(void);
+bool iwp_job_stop_all(TickType_t timeout);
 
 /* ---- вызывается ИЗ тела job -------------------------------------------- */
-static inline bool job_stop_requested(const job_t *job) { return job->stop_requested; }
+static inline bool iwp_job_stop_requested(const iwp_job_t *job) { return job->stop_requested; }
 
 /* Ждать событий/таймаута. Возвращает набор пользовательских битов (0 при
- * таймауте или при STOP). После возврата проверяйте job_stop_requested(). */
-uint32_t job_wait(job_t *job, TickType_t timeout);
+ * таймауте или при STOP). После возврата проверяйте iwp_job_stop_requested(). */
+uint32_t iwp_job_wait(iwp_job_t *job, TickType_t timeout);
 
 /* Разбудить job пользовательскими битами (из задачи / из ISR). */
-void job_notify(job_t *job, uint32_t bits);
-void job_notify_from_isr(job_t *job, uint32_t bits);
+void iwp_job_notify(iwp_job_t *job, uint32_t bits);
+void iwp_job_notify_from_isr(iwp_job_t *job, uint32_t bits);
 
-#endif /* JOB_H */
+#endif /* IWP_JOB_H */

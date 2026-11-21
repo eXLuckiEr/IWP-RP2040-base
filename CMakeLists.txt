@@ -17,7 +17,7 @@ set(PICO_BOARD pico CACHE STRING "Board type")
 cmake_minimum_required(VERSION 3.12)
 
 # Name project
-SET(ProjectName rp2040-spi)
+SET(ProjectName iwp-rp2040-base)
 SET(SOURCE_FOLDER src)
 
 # ---- Какие примеры/модули включить: cmake -DENABLE_I2C_TOOLS=ON .. ---------
@@ -35,7 +35,7 @@ include(pico_sdk_import.cmake)
 include(${FREERTOS_KERNEL_PATH}/portable/ThirdParty/GCC/RP2040/FreeRTOS_Kernel_import.cmake)
 
 # Define project
-project(rp2040-spi)
+project(iwp-rp2040-base)
 
 # Initialize the Raspberry Pi Pico SDK
 pico_sdk_init()
@@ -49,7 +49,7 @@ target_include_directories(scpi_lib PUBLIC
 )
 
 # ---- Ядро: транспорт + SCPI + фоновые задачи ---------------------------------
-add_executable(rp2040-spi
+add_executable(iwp-rp2040-base
     ${SOURCE_FOLDER}/main.c
     ${SOURCE_FOLDER}/core/job.c
     ${SOURCE_FOLDER}/core/transport.c
@@ -59,7 +59,7 @@ add_executable(rp2040-spi
     ${SOURCE_FOLDER}/app/app.c
 )
 
-target_include_directories(rp2040-spi PRIVATE
+target_include_directories(iwp-rp2040-base PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}
     ${SOURCE_FOLDER}
 )
@@ -68,14 +68,14 @@ set(APP_LIBS "")
 
 # ---- Примеры / модули --------------------------------------------------------
 if(ENABLE_ADC_DUMP)
-    target_sources(rp2040-spi PRIVATE ${SOURCE_FOLDER}/app/adc_dump.c)
-    target_compile_definitions(rp2040-spi PRIVATE APP_ADC_DUMP=1)
+    target_sources(iwp-rp2040-base PRIVATE ${SOURCE_FOLDER}/app/adc_dump.c)
+    target_compile_definitions(iwp-rp2040-base PRIVATE APP_ADC_DUMP=1)
     list(APPEND APP_LIBS hardware_dma hardware_spi hardware_clocks hardware_irq)
 endif()
 
 if(ENABLE_I2C_TOOLS)
-    target_sources(rp2040-spi PRIVATE ${SOURCE_FOLDER}/modules/i2c_tools/scpi_i2c.c)
-    target_compile_definitions(rp2040-spi PRIVATE APP_I2C_TOOLS=1)
+    target_sources(iwp-rp2040-base PRIVATE ${SOURCE_FOLDER}/modules/i2c_tools/scpi_i2c.c)
+    target_compile_definitions(iwp-rp2040-base PRIVATE APP_I2C_TOOLS=1)
     list(APPEND APP_LIBS hardware_i2c)
 endif()
 
@@ -84,24 +84,24 @@ if(ENABLE_DISPLAY)
     add_library(ssd1309_lib STATIC ${SSD1309_SRCS})
     target_include_directories(ssd1309_lib PRIVATE ${CMAKE_CURRENT_LIST_DIR} ${SSD1309_LIB_PATH}/src)
 
-    target_sources(rp2040-spi PRIVATE
+    target_sources(iwp-rp2040-base PRIVATE
         ${SOURCE_FOLDER}/modules/display/scpi_display.c
         ${SOURCE_FOLDER}/modules/display/driver/driver_ssd1309_interface.c
         ${SOURCE_FOLDER}/modules/display/driver/driver_ssd1309_advance.c
     )
-    target_include_directories(rp2040-spi PRIVATE
+    target_include_directories(iwp-rp2040-base PRIVATE
         ${SOURCE_FOLDER}/modules/display/driver
         ${SSD1309_LIB_PATH}/src
     )
-    target_compile_definitions(rp2040-spi PRIVATE APP_DISPLAY=1)
+    target_compile_definitions(iwp-rp2040-base PRIVATE APP_DISPLAY=1)
     list(APPEND APP_LIBS ssd1309_lib hardware_spi)
 endif()
 
 # USB-CDC — канал SCPI (см. core/transport.c). UART-stdio выключен.
-pico_enable_stdio_uart(rp2040-spi 0)
-pico_enable_stdio_usb(rp2040-spi 1)
+pico_enable_stdio_uart(iwp-rp2040-base 0)
+pico_enable_stdio_usb(iwp-rp2040-base 1)
 
-target_link_libraries(rp2040-spi
+target_link_libraries(iwp-rp2040-base
     pico_stdlib
     pico_unique_id
     hardware_adc
@@ -111,4 +111,4 @@ target_link_libraries(rp2040-spi
     ${APP_LIBS}
 )
 
-pico_add_extra_outputs(rp2040-spi)
+pico_add_extra_outputs(iwp-rp2040-base)

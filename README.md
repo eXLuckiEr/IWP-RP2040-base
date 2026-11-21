@@ -1,4 +1,7 @@
-# RP2040 SCPI Base
+# IWP RP2040 Base
+
+Прошивочная база для устройств на RP2040, которыми управляет **Instrument Workbench Platform (IWP)**.
+Каждый прибор на этом коде представляется IWP командой `*IDN?` как `IWP,<модель>,<UID чипа>,<версия>`.
 
 Стартовая точка для устройств на RP2040, которыми нужно управлять снаружи:
 **FreeRTOS + SCPI поверх USB-CDC + фоновые задачи, которые не блокируют приём команд**.
@@ -7,8 +10,8 @@
 
 ```
  хост ──USB-CDC──► transport ──RX stream──► scpi (разбор) ──► SCPI-колбэк
-   ▲                  ▲                                          │ job_start()/job_stop()
-   │                  └──────── TX stream ◄── transport_write() ◄┤
+   ▲                  ▲                                          │ iwp_job_start()/iwp_job_stop()
+   │                  └──────── TX stream ◄── iwp_transport_write() ◄┤
    └──────────── SCPI-ответы и потоки данных ◄──────────────── job (фоновая задача)
 ```
 
@@ -17,7 +20,7 @@ src/
 ├── main.c                 создаёт задачи, больше ничего
 ├── config/board_config.h  пины, приоритеты, стеки, размеры буферов, *IDN?
 ├── core/                  БАЗА — трогать редко
-│   ├── transport.{c,h}    USB-CDC <-> потоки байт, потокобезопасный transport_write()
+│   ├── transport.{c,h}    USB-CDC <-> потоки байт, потокобезопасный iwp_transport_write()
 │   ├── scpi_port.{c,h}    libscpi + FreeRTOS, буферизация ответов
 │   ├── scpi_commands.c    таблица команд (IEEE 488.2, SYST:*, ABORt) + подключение модулей
 │   └── job.{c,h}          фоновая задача со start/stop
@@ -37,20 +40,20 @@ SCPI-колбэк выполняется в SCPI-задаче: пока он р�
 Поэтому правило одно: **колбэк быстро возвращается, долгая работа живёт в `job`**.
 
 ```c
-static job_t s_job;
+static iwp_job_t s_job;
 
-static void my_job(job_t *job, void *arg) {
-    while (!job_stop_requested(job)) {
-        measure_and_send();                    // transport_write(...)
-        job_wait(job, pdMS_TO_TICKS(100));     // просыпается раньше по STOP
+static void my_job(iwp_job_t *job, void *arg) {
+    while (!iwp_job_stop_requested(job)) {
+        measure_and_send();                    // iwp_transport_write(...)
+        iwp_job_wait(job, pdMS_TO_TICKS(100));     // просыпается раньше по STOP
     }
     cleanup();
 }
 
-job_init(&s_job, "my", my_job, STACK_JOB_DEFAULT, PRIO_JOB);   // один раз, в *_init()
+iwp_job_init(&s_job, "my", my_job, STACK_JOB_DEFAULT, PRIO_JOB);   // один раз, в *_init()
 
-scpi_result_t my_start(scpi_t *c) { return job_start(&s_job, NULL) ? SCPI_RES_OK : err(c); }
-scpi_result_t my_stop(scpi_t *c)  { job_stop(&s_job, pdMS_TO_TICKS(500)); return SCPI_RES_OK; }
+scpi_result_t my_start(scpi_t *c) { return iwp_job_start(&s_job, NULL) ? SCPI_RES_OK : err(c); }
+scpi_result_t my_stop(scpi_t *c)  { iwp_job_stop(&s_job, pdMS_TO_TICKS(500)); return SCPI_RES_OK; }
 ```
 
 Остановить дамп можно четырьмя способами: `ADC:DUMP:STOP`, `ABORt`, `*RST`, а также

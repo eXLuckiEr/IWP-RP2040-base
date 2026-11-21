@@ -26,9 +26,9 @@ int main(void)
     stdio_init_all();
 
     /* Не вкладывайте вызовы внутрь configASSERT: в Release он может быть пустым. */
-    bool ok = sysinfo_init();   /* до старта планировщика: читает UID из flash */
-    ok = ok && transport_init();
-    ok = ok && scpi_port_init();
+    bool ok = iwp_sysinfo_init();   /* до старта планировщика: читает UID из flash */
+    ok = ok && iwp_transport_init();
+    ok = ok && iwp_scpi_port_init();
     ok = ok && app_init();
     configASSERT(ok);
     (void)ok;

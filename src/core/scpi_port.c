@@ -8,6 +8,7 @@
 
 #include "config/board_config.h"
 #include "core/job.h"
+#include "core/sysinfo.h"
 #include "core/transport.h"
 
 static char          s_input_buffer[SCPI_INPUT_BUFFER_LENGTH];
@@ -17,7 +18,7 @@ static scpi_t        s_context;
 /* ---- Буферизация ответа ------------------------------------------------- *
  * libscpi пишет ответ кусками (значение, разделитель, перевод строки).
  * Если слать каждый кусок отдельно, между ними может вклиниться чанк дампа.
- * Поэтому копим ответ и отправляем одним transport_write() на SCPI_Flush().
+ * Поэтому копим ответ и отправляем одним iwp_transport_write() на SCPI_Flush().
  * ------------------------------------------------------------------------ */
 static char   s_resp[SCPI_RESPONSE_BUFFER_BYTES];
 static size_t s_resp_len;
@@ -25,7 +26,7 @@ static size_t s_resp_len;
 static void response_flush(void)
 {
     if (s_resp_len > 0) {
-        transport_write(s_resp, s_resp_len, pdMS_TO_TICKS(SCPI_RESPONSE_TIMEOUT_MS));
+        iwp_transport_write(s_resp, s_resp_len, pdMS_TO_TICKS(SCPI_RESPONSE_TIMEOUT_MS));
         s_resp_len = 0;
     }
 }
@@ -65,7 +66,7 @@ static int scpi_cb_error(scpi_t *context, int_fast16_t err)
     int n = snprintf(msg, sizeof(msg), "**ERROR: %d, \"%s\"\r\n",
                      (int)err, SCPI_ErrorTranslate(err));
     if (n > 0) {
-        transport_write(msg, (size_t)n, pdMS_TO_TICKS(SCPI_RESPONSE_TIMEOUT_MS));
+        iwp_transport_write(msg, (size_t)n, pdMS_TO_TICKS(SCPI_RESPONSE_TIMEOUT_MS));
     }
 #else
     (void)err;      /* ошибки остаются в очереди: SYSTem:ERRor? */
@@ -83,7 +84,7 @@ static scpi_result_t scpi_cb_control(scpi_t *context, scpi_ctrl_name_t ctrl, scp
 static scpi_result_t scpi_cb_reset(scpi_t *context)
 {
     (void)context;
-    job_stop_all(pdMS_TO_TICKS(500));
+    iwp_job_stop_all(pdMS_TO_TICKS(500));
     return SCPI_RES_OK;
 }
 
@@ -103,7 +104,7 @@ static void scpi_task(void *param)
     char buf[64];
 
     for (;;) {
-        size_t n = transport_read(buf, sizeof(buf), portMAX_DELAY);
+        size_t n = iwp_transport_read(buf, sizeof(buf), portMAX_DELAY);
         if (n > 0) {
             SCPI_Input(&s_context, buf, (int)n);
             response_flush();       /* на случай ответа без перевода строки */
@@ -111,10 +112,10 @@ static void scpi_task(void *param)
     }
 }
 
-bool scpi_port_init(void)
+bool iwp_scpi_port_init(void)
 {
     SCPI_Init(&s_context, scpi_commands, &s_interface, scpi_units_def,
-              SCPI_IDN_MANUFACTURER, SCPI_IDN_MODEL, SCPI_IDN_SERIAL, SCPI_IDN_FIRMWARE,
+              SCPI_IDN_MANUFACTURER, SCPI_IDN_MODEL, iwp_sysinfo_uid(), SCPI_IDN_FIRMWARE,
               s_input_buffer, sizeof(s_input_buffer),
               s_error_queue, SCPI_ERROR_QUEUE_SIZE);
 

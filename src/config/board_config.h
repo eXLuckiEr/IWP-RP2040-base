@@ -31,9 +31,11 @@
 #define SCPI_RESPONSE_BUFFER_BYTES  512     /* ответ копится и уходит целиком     */
 #define SCPI_RESPONSE_TIMEOUT_MS    200
 #define SCPI_ECHO_ERRORS            0       /* 1 = печатать "**ERROR" в поток     */
-#define SCPI_IDN_MANUFACTURER       "MY COMPANY"
-#define SCPI_IDN_MODEL              "RP2040 SCPI BASE"
-#define SCPI_IDN_SERIAL             NULL
+/* *IDN? -> <производитель>,<модель>,<серийный>,<версия>. Серийный номер — уникальный
+ * ID чипа (SYSTem:UID?), так IWP отличает каждое устройство без ручной настройки.
+ * В прошивке конкретного прибора меняйте только модель: "IWP-PSU-MON", "IWP-ADC8"... */
+#define SCPI_IDN_MANUFACTURER       "IWP"
+#define SCPI_IDN_MODEL              "IWP-RP2040-BASE"
 #define SCPI_IDN_FIRMWARE           "0.1"
 
 /* ---- SYSINFO: встроенный датчик температуры RP2040 ----------------------- */

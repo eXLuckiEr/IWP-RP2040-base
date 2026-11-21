@@ -60,7 +60,7 @@ static void chars_available_cb(void *param)
 
 /* ---- задача -------------------------------------------------------------- */
 
-static void transport_task(void *param)
+static void iwp_transport_task(void *param)
 {
     (void)param;
     uint8_t buf[TRANSPORT_TX_CHUNK_BYTES];
@@ -76,7 +76,7 @@ static void transport_task(void *param)
         bool connected = backend_connected();
         if (was_connected && !connected) {
             /* Хост пропал: никто не читает дамп — останавливаем все job. */
-            job_request_stop_all();
+            iwp_job_request_stop_all();
         }
         was_connected = connected;
 
@@ -103,7 +103,7 @@ static void transport_task(void *param)
             int keep = 0;
             for (int i = 0; i < n; i++) {
                 if (rx[i] == TRANSPORT_BREAK_BYTE) {
-                    job_request_stop_all();
+                    iwp_job_request_stop_all();
                 } else {
                     rx[keep++] = rx[i];
                 }
@@ -128,7 +128,7 @@ static void transport_task(void *param)
 
 /* ---- публичный API ------------------------------------------------------ */
 
-bool transport_init(void)
+bool iwp_transport_init(void)
 {
     s_rx = xStreamBufferCreate(TRANSPORT_RX_BUFFER_BYTES, 1);
     s_tx = xStreamBufferCreate(TRANSPORT_TX_BUFFER_BYTES, 1);
@@ -136,16 +136,16 @@ bool transport_init(void)
     if (s_rx == NULL || s_tx == NULL || s_tx_mutex == NULL) {
         return false;
     }
-    return xTaskCreate(transport_task, "transport", STACK_TRANSPORT, NULL,
+    return xTaskCreate(iwp_transport_task, "transport", STACK_TRANSPORT, NULL,
                        PRIO_TRANSPORT, &s_task) == pdPASS;
 }
 
-bool transport_connected(void)
+bool iwp_transport_connected(void)
 {
     return backend_connected();
 }
 
-size_t transport_write(const void *data, size_t len, TickType_t timeout)
+size_t iwp_transport_write(const void *data, size_t len, TickType_t timeout)
 {
     if (data == NULL || len == 0 || !backend_connected()) {
         return 0;
@@ -179,7 +179,7 @@ size_t transport_write(const void *data, size_t len, TickType_t timeout)
     return done;
 }
 
-size_t transport_read(void *data, size_t max, TickType_t timeout)
+size_t iwp_transport_read(void *data, size_t max, TickType_t timeout)
 {
     size_t n = xStreamBufferReceive(s_rx, data, max, timeout);
     if (n > 0) {

@@ -15,7 +15,7 @@
 
 static char s_uid[2 * PICO_UNIQUE_BOARD_ID_SIZE_BYTES + 1];
 
-bool sysinfo_init(void)
+bool iwp_sysinfo_init(void)
 {
     pico_get_unique_board_id_string(s_uid, sizeof(s_uid));
 
@@ -24,7 +24,12 @@ bool sysinfo_init(void)
     return true;
 }
 
-float sysinfo_read_temperature_c(void)
+const char *iwp_sysinfo_uid(void)
+{
+    return s_uid;
+}
+
+float iwp_sysinfo_read_temperature_c(void)
 {
     adc_select_input(ADC_TEMP_CHANNEL);
 
@@ -41,7 +46,7 @@ float sysinfo_read_temperature_c(void)
 
 scpi_result_t scpi_sys_temperature_q(scpi_t *context)
 {
-    SCPI_ResultFloat(context, sysinfo_read_temperature_c());
+    SCPI_ResultFloat(context, iwp_sysinfo_read_temperature_c());
     return SCPI_RES_OK;
 }
 

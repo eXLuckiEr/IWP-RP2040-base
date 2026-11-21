@@ -22,10 +22,13 @@
 
 /* Вызывать из main() ДО vTaskStartScheduler(): чтение UID идёт через flash,
  * а на втором ядре в это время ещё ничего не исполняется. */
-bool sysinfo_init(void);
+bool iwp_sysinfo_init(void);
+
+/* Уникальный ID чипа (16 hex), доступен после iwp_sysinfo_init(). Живёт всё время работы. */
+const char *iwp_sysinfo_uid(void);
 
 /* Температура кристалла, °C. */
-float sysinfo_read_temperature_c(void);
+float iwp_sysinfo_read_temperature_c(void);
 
 scpi_result_t scpi_sys_temperature_q(scpi_t *context);
 scpi_result_t scpi_sys_uid_q(scpi_t *context);
